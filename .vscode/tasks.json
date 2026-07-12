@@ -1,0 +1,25 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Forge: build",
+      "type": "shell",
+      "command": "forge build",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Forge: test",
+      "type": "shell",
+      "command": "forge test",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Forge: CI (PowerShell)",
+      "type": "shell",
+      "command": "powershell -ExecutionPolicy Bypass -File scripts/ci.ps1",
+      "problemMatcher": []
+    }
+  ]
+}

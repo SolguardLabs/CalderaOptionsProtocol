@@ -1,0 +1,11 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Anvil local node",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "anvil --steps-tracing"
+    }
+  ]
+}
