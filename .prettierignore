@@ -1,0 +1,7 @@
+lib
+cache
+out
+broadcast
+coverage
+test/private
+foundry.lock
