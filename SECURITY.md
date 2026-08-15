@@ -1,76 +1,99 @@
-# Seguridad
+# Política de seguridad
 
-## Modelo de seguridad
+## Versiones mantenidas
 
-Caldera separa configuración, custodia, representación de posiciones y
-settlement. Las operaciones económicas se orquestan desde una única fachada y
-los módulos de estado solo aceptan llamadas de esa dirección una vez enlazados.
+| Versión | Estado            | Referencia                            |
+| ------- | ----------------- | ------------------------------------- |
+| 1.0.x   | Mantenida         | Rama `production` y etiqueta `v1.0.0` |
+| < 1.0   | Sin mantenimiento | No recibe correcciones                |
 
-El administrador inicial asigna roles diferenciados:
+Una entrega se considera publicada cuando `main`, `production`, la etiqueta anotada y el release
+han superado sus controles independientes.
 
-- gobierno configura activos, parámetros y series;
-- el gestor de oracle publica precios secuenciados;
-- el guardián puede pausar nuevas operaciones económicas;
-- la reanudación requiere autoridad de gobierno.
+## Propiedades protegidas
 
-El procesamiento de solicitudes maduras es permissionless para evitar que un
-keeper concreto sea un requisito de disponibilidad.
+Caldera preserva autorización, cobertura, aislamiento contable, monotonicidad de estados y
+trazabilidad. Los invariantes fundamentales son:
 
-## Supuestos de activos
-
-- Los activos implementan el comportamiento ERC-20 convencional.
-- Se admiten entre 1 y 18 decimales.
-- No se admiten tokens con comisión en transferencia, rebasing o balances que
-  cambien durante una operación.
-- Cada activo tiene cap de depósito y puede deshabilitarse para nuevas series.
-- Los precios del subyacente se normalizan a 18 decimales.
-
-## Invariantes esperadas
-
-- Los contratos vendidos nunca superan los contratos escritos.
-- El supply long, las solicitudes registradas y los contratos liquidados
-  conservan el open interest de la serie.
-- El payout individual nunca supera el colateral máximo de sus contratos.
-- Una solicitud solo transita de pendiente a procesamiento y a procesada.
-- Una posición writer solo puede liquidarse una vez.
-- Las primas se separan físicamente del vault de colateral.
-- Las comisiones y primas pagadas no superan el importe recaudado.
-- Los precios caducados, futuros o fuera de secuencia se rechazan.
-- Los cambios de fase dependen exclusivamente de ventanas inmutables.
-- El balance físico y las reservas contables pueden inspeccionarse por activo.
-
-## Controles automatizados
-
-```bash
-forge fmt --check
-forge build --sizes
-forge test
-FOUNDRY_PROFILE=ci forge test
-bash scripts/check-loc.sh
+```text
+soldContracts <= writtenContracts
+liveLongSupply + settledContracts == soldContracts
+payout(request) <= collateralPerContract * contracts
+reserveBySeries <= collateralDeposited - collateralReleased
+premiumPaid + feePaid <= grossPremium
+processed request => processedAt != 0
+executed operation => activeApprovals >= approvalQuorum
 ```
 
-Los tests cubren creación de series, cotización, escritura, compras,
-distribución de primas, ejercicio, procesamiento por lotes, expiración,
-transferencias de posiciones, roles, pausado y límites del oracle.
+Las cantidades monetarias usan enteros. Los precios se expresan en WAD y porcentajes en BPS. El
+colateral máximo redondea hacia arriba y los pagos realizados hacia abajo. Ninguna integración debe
+convertir unidades atómicas a coma flotante.
 
-## Dependencias y compilación
+## Superficie protegida
 
-El proyecto fija Solidity 0.8.24 y EVM Cancun en `foundry.toml`. `forge-std` es
-la única dependencia de desarrollo. Dependabot revisa GitHub Actions y los
-submódulos de Foundry.
+- Registro de activos, decimales, habilitación y caps de depósito.
+- Configuración de series, ventanas, strike, cap, tamaño y fees.
+- Secuencia, timestamp, frescura y normalización del oracle.
+- Escritura, compra, supplies y autoridad sobre posiciones.
+- Custodia de garantía, primas, fees, reservas y balance físico.
+- Solicitud, demora, procesamiento y cierre de ejercicios.
+- Índices de prima y pérdida, restos de división y settlement de writers.
+- Pausa, roles, timelock, quórum, predecesores y cancelación.
+- Fuentes de liquidez, supuestos de estrés, concentración y digests.
+- SDK, timeout, idempotencia, esquema de respuesta y cadena de entrega.
 
-## Alcance de revisión
+## Modelo de confianza
 
-Los reportes deben incluir:
+El administrador gestiona el grafo de roles; gobierno configura mercados y programa cambios; el
+guardián pausa y cancela operaciones pendientes; el gestor de oracle publica observaciones
+secuenciadas. Procesar solicitudes maduras es permissionless para no depender de una identidad
+concreta. Los módulos con fondos aceptan llamadas de la fachada enlazada y rechazan sustitución
+posterior.
 
-- contrato y función afectados;
-- precondiciones y orden exacto de transacciones;
-- estado de series, posiciones y cola antes y después;
-- variación de balances físicos y contables;
-- impacto económico máximo;
-- prueba reproducible con Foundry;
-- propuesta de mitigación y tests de regresión.
+Los activos admitidos deben seguir ERC-20 convencional. No se admiten comisiones en transferencia,
+rebasing ni balances que cambien durante una operación. Una transferencia valida el delta exacto
+antes de actualizar el estado final.
 
-No se aceptan como hallazgos aislados decisiones documentadas del modelo, como
-la liquidación monetaria, el cap de las calls o la naturaleza permissionless
-del procesamiento maduro.
+## Comunicación privada
+
+Use **GitHub Security Advisories → New draft advisory** en este repositorio. No publique detalles
+técnicos en incidencias o discusiones. Incluya:
+
+1. Versión, contrato, función y precondiciones.
+2. Orden exacto de transacciones y marcas temporales.
+3. Estado de serie, posición, cola y custodia antes y después.
+4. Variación de balances físicos y contables.
+5. Impacto máximo razonable y factores que lo limitan.
+6. Reproducción mínima con Foundry, sin secretos ni datos ajenos.
+7. Mitigación o invariante propuesto.
+
+Acusaremos recibo en tres días laborables, comunicaremos clasificación inicial en siete y
+mantendremos actualizaciones relevantes al menos cada catorce días. La divulgación se coordina
+después de que exista una versión corregida y verificable.
+
+## Investigación de buena fe
+
+- Use solo cuentas, activos y entornos bajo su control.
+- Limite volumen y llamadas al mínimo necesario.
+- No interrumpa disponibilidad ni cadenas de entrega.
+- No acceda, retenga o comparta información de terceros.
+- Detenga la actividad si aparece riesgo para activos externos.
+- Conserve hashes, bloques, timestamps, versiones y entradas exactas.
+
+Esta política no autoriza actividad fuera de los sistemas controlados por la organización.
+
+## Respuesta
+
+Una señal financiera activa el flujo de [docs/runbooks.md](./docs/runbooks.md): contención, captura
+de estado, conciliación, escenarios de estrés, cambio autorizado, verificación y reanudación gradual.
+No se corrigen saldos manualmente sin una transición reproducible y auditable.
+
+## Integridad de entrega
+
+- Solidity 0.8.24, Foundry 1.7.1, Node.js 24 y Bun 1.3.14 están fijados.
+- `forge-std`, `foundry.lock` y `bun.lock` conservan dependencias reproducibles.
+- CI ejecuta formato, tamaños, unitarias, fuzz, invariantes, SDK y contrato documental.
+- Linux y Windows deben completar la misma puerta funcional.
+- CODEOWNERS cubre gobierno, riesgo, workflows y documentación.
+- La etiqueta debe ser anotada, coincidir con `package.json` y resolver a `origin/production`.
+- La puerta completa se repite al crear la etiqueta y al publicar el release.
